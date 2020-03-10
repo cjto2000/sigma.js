@@ -1,0 +1,274 @@
+<!-- START SIGMA IMPORTS -->
+<script src="../src/sigma.core.js"></script>
+<script src="../src/conrad.js"></script>
+<script src="../src/utils/sigma.utils.js"></script>
+<script src="../src/utils/sigma.polyfills.js"></script>
+<script src="../src/sigma.settings.js"></script>
+<script src="../src/classes/sigma.classes.dispatcher.js"></script>
+<script src="../src/classes/sigma.classes.configurable.js"></script>
+<script src="../src/classes/sigma.classes.graph.js"></script>
+<script src="../src/classes/sigma.classes.camera.js"></script>
+<script src="../src/classes/sigma.classes.quad.js"></script>
+<script src="../src/classes/sigma.classes.edgequad.js"></script>
+<script src="../src/captors/sigma.captors.mouse.js"></script>
+<script src="../src/captors/sigma.captors.touch.js"></script>
+<script src="../src/renderers/sigma.renderers.canvas.js"></script>
+<script src="../src/renderers/sigma.renderers.webgl.js"></script>
+<script src="../src/renderers/sigma.renderers.svg.js"></script>
+<script src="../src/renderers/sigma.renderers.def.js"></script>
+<script src="../src/renderers/webgl/sigma.webgl.nodes.def.js"></script>
+<script src="../src/renderers/webgl/sigma.webgl.nodes.fast.js"></script>
+<script src="../src/renderers/webgl/sigma.webgl.edges.def.js"></script>
+<script src="../src/renderers/webgl/sigma.webgl.edges.fast.js"></script>
+<script src="../src/renderers/webgl/sigma.webgl.edges.arrow.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.labels.def.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.hovers.def.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.nodes.def.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edges.def.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edges.curve.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edges.arrow.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edges.curvedArrow.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edgehovers.def.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edgehovers.curve.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edgehovers.arrow.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.edgehovers.curvedArrow.js"></script>
+<script src="../src/renderers/canvas/sigma.canvas.extremities.def.js"></script>
+<script src="../src/renderers/svg/sigma.svg.utils.js"></script>
+<script src="../src/renderers/svg/sigma.svg.nodes.def.js"></script>
+<script src="../src/renderers/svg/sigma.svg.edges.def.js"></script>
+<script src="../src/renderers/svg/sigma.svg.edges.curve.js"></script>
+<script src="../src/renderers/svg/sigma.svg.labels.def.js"></script>
+<script src="../src/renderers/svg/sigma.svg.hovers.def.js"></script>
+<script src="../src/middlewares/sigma.middlewares.rescale.js"></script>
+<script src="../src/middlewares/sigma.middlewares.copy.js"></script>
+<script src="../src/misc/sigma.misc.animation.js"></script>
+<script src="../src/misc/sigma.misc.bindEvents.js"></script>
+<script src="../src/misc/sigma.misc.bindDOMEvents.js"></script>
+<script src="../src/misc/sigma.misc.drawHovers.js"></script>
+<!-- END SIGMA IMPORTS -->
+<script src="../plugins/sigma.plugins.dragNodes/sigma.plugins.dragNodes.js"></script>
+<div id="container">
+  <style>
+    #graph-container {
+      background: #fff;
+      height: 600px;
+      max-width: 800px;
+      margin: auto;
+      position: relative;
+      overflow: hidden;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      -webkit-transition: 0.4s;
+      transition: 0.4s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      -webkit-transition: 0.4s;
+      transition: 0.4s;
+    }
+
+    input:checked + .slider {
+      background-color: #2196f3;
+    }
+
+    input:focus + .slider {
+      box-shadow: 0 0 1px #2196f3;
+    }
+
+    input:checked + .slider:before {
+      -webkit-transform: translateX(26px);
+      -ms-transform: translateX(26px);
+      transform: translateX(26px);
+    }
+  </style>
+  <div id="graph-container"></div>
+  <p>Add Node</p>
+  <label class="switch">
+    <input type="checkbox" />
+    <span id="add-node-btn" class="slider"></span>
+  </label>
+  <p>Add Edge</p>
+  <label class="switch">
+    <input type="checkbox" />
+    <span id="add-edge-btn" class="slider"></span>
+  </label>
+  <p>Delete Node</p>
+  <label class="switch">
+    <input type="checkbox" />
+    <span id="del-node-btn" class="slider"></span>
+  </label>
+</div>
+<script>
+  var s,
+    c,
+    dom,
+    nId = 0,
+    eId = 0,
+    nodeRadius = 10,
+    ADD_NODE_FLAG = false,
+    ADD_EDGE_FLAG = false,
+    DEL_NODE_FLAG = false,
+    dragListener,
+    node1,
+    node2,
+    startX,
+    startY,
+    endX,
+    endY;
+
+  /**
+   * INITIALIZATION SCRIPT:
+   * **********************
+   */
+  s = new sigma({
+    renderer: {
+      container: document.getElementById("graph-container"),
+      type: "canvas"
+    },
+    settings: {
+      autoRescale: false,
+      nodesPowRatio: 1,
+      edgesPowRatio: 1,
+      defaultEdgeColor: "#333",
+      defaultNodeColor: "#333",
+      edgeColor: "default"
+    }
+  });
+  dom = document.querySelector("#graph-container canvas:last-child");
+  c = s.camera;
+  dragListener = sigma.plugins.dragNodes(s, s.renderers[0]);
+
+  /**
+   * EVENTS BINDING:
+   * ***************
+   */
+
+  function addNodeOnClick(e) {
+    if (ADD_NODE_FLAG) {
+      var x, y, p, id;
+
+      x = sigma.utils.getX(e) - dom.offsetWidth / 2;
+      y = sigma.utils.getY(e) - dom.offsetHeight / 2;
+
+      p = c.cameraPosition(x, y);
+      x = p.x;
+      y = p.y;
+
+      if (
+        Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)) < 10
+      ) {
+        id = ++nId + "";
+        s.graph.addNode({
+          id: id,
+          label: id,
+          size: nodeRadius,
+          x: x + Math.random() / 10,
+          y: y + Math.random() / 10,
+          dX: 0,
+          dY: 0
+        });
+        s.refresh();
+      }
+    }
+  }
+
+  dom.addEventListener("click", addNodeOnClick);
+
+  document.getElementById("add-node-btn").addEventListener("click", function() {
+    if (ADD_EDGE_FLAG) {
+      document.getElementById("add-edge-btn").click();
+    }
+
+    if (DEL_NODE_FLAG) {
+      document.getElementById("del-node-btn").click();
+    }
+
+    ADD_NODE_FLAG = !ADD_NODE_FLAG;
+  });
+
+  function getId(e) {
+    if (ADD_EDGE_FLAG) {
+      if (node1 == null) {
+        node1 = e.data.node;
+      } else if (node2 == null && e.data.node != node1) {
+        node2 = e.data.node;
+        s.graph.addEdge({
+          id: ++eId + "",
+          label: eId + "",
+          source: node1.id,
+          target: node2.id
+        });
+        s.refresh();
+        node1 = null;
+        node2 = null;
+      }
+    } else if (DEL_NODE_FLAG) {
+      s.graph.dropNode(e.data.node.id);
+      s.refresh();
+    }
+  }
+
+  s.bind("clickNode", getId);
+  document.getElementById("add-edge-btn").addEventListener("click", function() {
+    if (ADD_NODE_FLAG) {
+      document.getElementById("add-node-btn").click();
+    }
+
+    if (DEL_NODE_FLAG) {
+      document.getElementById("del-node-btn").click();
+    }
+
+    node1 = null;
+    node2 = null;
+    ADD_EDGE_FLAG = !ADD_EDGE_FLAG;
+  });
+
+  document.getElementById("del-node-btn").addEventListener("click", e => {
+    if (ADD_EDGE_FLAG) {
+      document.getElementById("add-edge-btn").click();
+    }
+
+    if (ADD_NODE_FLAG) {
+      document.getElementById("add-node-btn").click();
+    }
+
+    DEL_NODE_FLAG = !DEL_NODE_FLAG;
+  });
+
+  dom.addEventListener("mousedown", e => {
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  dom.addEventListener("mouseup", e => {
+    endX = e.clientX;
+    endY = e.clientY;
+  });
+</script>
